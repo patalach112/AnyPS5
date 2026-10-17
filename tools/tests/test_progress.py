@@ -9,6 +9,40 @@ import progress
 
 
 class ProgressTests(unittest.TestCase):
+    def test_todo_report_lists_pending_functions_by_library(self):
+        data = {"groups": [
+            {"name": "libScePad", "todo": 1, "todo_names": ["scePadRead"]},
+            {"name": "libSceEmpty", "todo": 0, "todo_names": []},
+            {"name": "libSceFont", "todo": 2, "todo_names": ["sceFontOpen", "sceFontClose"]},
+        ]}
+        self.assertEqual(
+            progress.todo_report(data),
+            "3 pending function(s) in 2 libraries.\n\n"
+            "libScePad (1)\n  scePadRead\n\n"
+            "libSceFont (2)\n  sceFontOpen\n  sceFontClose",
+        )
+
+    def test_todo_report_can_filter_a_library(self):
+        data = {"groups": [
+            {"name": "libScePad", "todo": 1, "todo_names": ["scePadRead"]},
+            {"name": "libSceFont", "todo": 2, "todo_names": ["sceFontOpen", "sceFontClose"]},
+        ]}
+        self.assertEqual(
+            progress.todo_report(data, "libSceFont"),
+            "2 pending function(s) in 1 library.\n\n"
+            "libSceFont (2)\n  sceFontOpen\n  sceFontClose",
+        )
+        self.assertEqual(
+            progress.todo_report(data, "libScePad"),
+            "1 pending function(s) in 1 library.\n\nlibScePad (1)\n  scePadRead",
+        )
+
+    def test_todo_report_distinguishes_empty_and_unknown_libraries(self):
+        data = {"groups": [{"name": "libSceEmpty", "todo": 0, "todo_names": []}]}
+        self.assertEqual(progress.todo_report(data), "No pending library functions.")
+        self.assertEqual(progress.todo_report(data, "libSceEmpty"), "No pending library functions in libSceEmpty.")
+        self.assertIsNone(progress.todo_report(data, "libSceMissing"))
+
     def test_raw_string_example_does_not_declare_an_export(self):
         source = 'const char* example = R"help(\nint APS5_VABI Fake() { return 0; }\n)help";\n'
         source += 'int APS5_VABI Real() { return 7; }\n'
