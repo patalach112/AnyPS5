@@ -432,6 +432,26 @@ def report(base, head):
     return "\n".join(lines)
 
 
+def todo_report(libraries, library=None):
+    groups = libraries["groups"]
+    if library is not None:
+        groups = [group for group in groups if group["name"] == library]
+        if not groups:
+            return None
+    pending = [group for group in groups if group["todo_names"]]
+    total = sum(group["todo"] for group in pending)
+    if not pending:
+        scope = f" in {library}" if library is not None else ""
+        return f"No pending library functions{scope}."
+    library_count = len(pending)
+    lines = [f"{total} pending function(s) in {library_count} librar{'y' if library_count == 1 else 'ies'}.", ""]
+    for group in pending:
+        lines.append(f"{group['name']} ({group['todo']})")
+        lines.extend(f"  {name}" for name in group["todo_names"])
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
 if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -440,16 +460,29 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path, help="source tree to measure instead of the one containing this script")
     parser.add_argument("--compare", type=Path, nargs=2, metavar=("BASE", "HEAD"),
                         help="print a markdown report of the changes between two progress.json files")
+    parser.add_argument("--todo", action="store_true", help="list unimplemented library functions")
+    parser.add_argument("--library", help="limit --todo to a library directory name")
     args = parser.parse_args()
     if args.compare:
+        if args.todo or args.library:
+            parser.error("--compare cannot be combined with --todo or --library")
         base, head = (json.loads(path.read_text(encoding="utf-8")) for path in args.compare)
         print(report(base, head), end="")
         raise SystemExit
-    if not args.output:
-        parser.error("the output directory is required")
     if args.root:
         PRX = args.root / "core" / "libs" / "prx"
         OPCODES = args.root / OPCODES.relative_to(ROOT)
+    if args.todo:
+        libraries = collect_libraries()
+        output = todo_report(libraries, args.library)
+        if output is None:
+            parser.error(f"unknown library: {args.library}")
+        print(output)
+        raise SystemExit
+    if args.library:
+        parser.error("--library requires --todo")
+    if not args.output:
+        parser.error("the output directory is required")
     output = args.output
     output.mkdir(parents=True, exist_ok=True)
     libraries, shaders = collect_libraries(), collect_shaders()
