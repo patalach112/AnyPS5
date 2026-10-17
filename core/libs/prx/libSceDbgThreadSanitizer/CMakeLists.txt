@@ -1,0 +1,15 @@
+add_library(libSceDbgThreadSanitizer SHARED EXCLUDE_FROM_ALL Export.cpp)
+target_include_directories(libSceDbgThreadSanitizer PRIVATE ${LIBS_INCLUDE_DIR})
+configure_windows_unwind(libSceDbgThreadSanitizer)
+
+if(BUILD_TESTING)
+    add_test_executable(guest_tsan_annotations_tests ${LIBS_INCLUDE_DIR}/tests/GuestTsanAnnotations.cpp)
+    target_include_directories(guest_tsan_annotations_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_tsan_annotations_tests PRIVATE libSceDbgThreadSanitizer libc)
+    configure_windows_unwind(guest_tsan_annotations_tests)
+    add_test(NAME guest_tsan_annotations COMMAND guest_tsan_annotations_tests)
+    if(WIN32)
+        set_tests_properties(guest_tsan_annotations PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libSceDbgThreadSanitizer>")
+    endif()
+endif()
